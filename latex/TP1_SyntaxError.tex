@@ -1,0 +1,91 @@
+\documentclass[10pt,a4paper]{article}
+
+\input{AEDmacros}
+\usepackage{caratula} % Version modificada para usar las macros de algo1 de ~> https://github.com/bcardiff/dc-tex
+
+
+\titulo{Trabajo Pr\'actico 1:}
+\subtitulo{Especificación de Tads}
+
+\fecha{\today}
+
+\materia{Algoritmos y estructura de datos II}
+\grupo{{\fontsize{14pt}{12pt}\selectfont 1er cuatrimestre de 2025
+\\ \\ SyntaxError}} % 
+\integrante{Apellido,Nombre}{123}{hola02@gmail.com}
+\integrante{Apellido,Nombre}{123}{hola02@gmail.com}
+\integrante{Abbate, Lucas}{134/21}{abbatelucas@gmail.com}
+\integrante{Herrera, Alison Yamila}{814/23}{yaliherrera02@gmail.com}
+
+% Pongan cuantos integrantes quieran
+
+% Declaramos donde van a estar las figuras
+% No es obligatorio, pero suele ser comodo
+\graphicspath{{../static/}}
+
+\begin{document}
+
+\maketitle
+
+\section{Resolución TP}
+
+\begin{TAD}{Transaccion \{ } 
+	\obs{id\_transaccion: \nat}
+	\obs{id\_comprador: \ent}
+	\obs{id\_vendedor: \nat}
+	\obs{monto: \nat}
+\end{TAD}
+\}
+
+\begin{TAD}{Bloque \{ }
+	\obs{transacciones: \TLista{Transaccion}}
+	\obs{n\_bloque: \nat}
+\end{TAD}
+\}
+
+\begin{TAD}{BlockChain \{ }
+	\obs{bloques: \TLista{Bloque}}
+	    
+\end{TAD}
+\}
+
+\begin{TAD}{\$BerretaCoin \{ }
+	\obsindent{blockchain: BlockChain} % Si usas obsindent queda todo corrido a la misma altura, así que usar sólo en el ultimo
+\end{TAD}
+\vspace{1ex}
+
+\begin{aux}{ultimoBloque}{\In blockchain: Blockhain}{Bloque}{
+		res.n\_bloque = \longitud{blockchain} - 1
+	}
+\end{aux}
+
+\begin{aux}{primeraTransaccion}{\In bloque: Bloque}{Transaccion}{
+		(\longitud{bloque.transacciones} > 0) \implicaLuego bloque.transacciones[0]
+	}
+\end{aux}
+
+
+\vspace{1ex}
+
+\begin{proc}{agregarBloque}{\Inout blockchain: BlockChain}{}{
+		\requiere{blockchain = BC_0}
+		\asegura{\longitud{blockchain.bloques} > \longitud{BC_0.bloques}}
+		% si ultimoBloque es menor a 3000, hay transaccion de creacion
+		\asegura{(\text{ultimoBloque}(BC_0) < 3000 )\implicaLuego \newline((\text{primeraTransaccion}(blockchain)[1] = 0) \land  (\text{primeraTransaccion}(blockchain)[3] = 1))}
+	}
+\end{proc}
+\vspace{1ex}
+
+\begin{proc}{agregarTransaccion}{\In id\_comprador : \ent, \In id\_vendedor : \nat, \In monto : \nat, \Inout blockchain: BlockChain} {
+	\requiere{id\_comprador \neq id\_vendedor}
+	\asegura{\text{transaccionUnica}(res[0], blockchain)}
+	}
+\end{proc}
+
+
+
+\pred{transaccionUnica}{id\_transaccion: \nat, blockchain: BlockChain}{\paraTodo[unalinea]{i}{\ent}{\paraTodo[unalinea]{j}{\ent}{(0 \le i \le \longitud{blockchain.bloques}) \yLuego (0 \le j \le \longitud{blockchain.bloques[i]}) \implicaLuego id\_transaccion \neq blockchain.bloques[i][j][0]}}} % Quizas se pueda simplificar
+
+
+
+\end{document}
