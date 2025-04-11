@@ -20,22 +20,102 @@ TAD BlockChain {
 TAD $BerretaCoin {
     obs blockchain: BlockChain
 
-    aux ultimoBloque (in blockchain: BlockChain): Bloque {
-        res.n_bloque = |blockchain.bloques| - 1
+    // procs de creacion
+    proc crearTransaccion(in id_transaccion, in id_comprador, in id_vendedor, in monto): Transaccion{
+        requiere{id_comprador != id_vendedor}
+        asegura{res.id_comprador = id_comprador}
+        asegura{res.id_vendedor = id_vendedor}
+        asegura{res.id_transaccion = id_transaccion}
+        asegura{res.monto = monto}
     }
 
-    aux primeraTransaccion (in bloque: Bloque): Transaccion {
-        (|bloque.transacciones| > 0) -> bloque.transacciones[0]
+    proc crearBloque(in transacciones: seq<Transaccion>, in n_bloque: int): Bloque{
+        asegura{res.transacciones = transacciones}
+        asegura{res.n_bloque = n_bloque}
     }
+
+    proc crearBlockChain(in bloques: seq<Bloques>): BlockChain{
+        asegura{res.bloques = bloques}
+    }
+
+    //Validaciones
+    //// TRANSACCION
+
+     // VER SI ESTA BIEN LA VERIFICACION DE ID_TRANSACCION UNICO
+    pred esTransaccionUnica (id_transaccion: natural, blockchain: BlockChain){
+        (paratodo i : Z) ((paratodo j : Z) (0 <= i <= |blockhain.bloques|) ^ (0 <= j <= |blockhain.bloques[i]|) -->L id_transaccion != blockhain.bloques[i].transacciones[j].id_transaccion)
+    }
+
+
+    pred esTransaccionValida(in transaccion: Transaccion, in blockchain: BlockChain) {
+        (paraCada i:Z) ( 
+                transaccion[i].monto <= coinsUsuarioEnCuenta(transaccion[i].id_comprador, blockchain) ^
+                (transaccion[i].id_comprador != transaccion[i].id_vendedor) ^
+                (esTransaccionUnica(transaccion, BlockChain))
+            )
+    } 
+
+    //// BLOQUE
+
+    // que el n_bloque coincida con el n_bloque que tiene en la blockhain
+    pred n_bloqueCorrecto(in bloque: Bloque, in blockchain: BlockChain){
+        bloque.n_bloque = blockhain.bloques[bloque.n_bloque].n_bloque
+    }
+
+    pred longitudBloqueCorrecta(in bloque: Bloque, in blockchain: BlockChain){
+         0 <= |bloque.transacciones| <= 50
+    }
+
+    pred bloqueDeCreacionCorrecto(in bloque: Bloque, in blockchain: BlockChain){
+        (bloque.n_bloque < 3000 -> esTransacciondeCreacion(bloque.transacciones[0])) ^ (bloque.n_bloque >= 3000 -> ¬esTransacciondeCreacion(bloque.transacciones[0]))
+    }
+
+    // Verifica que estén ordenadas dentro del bloque (y la distancia sea 1)
+    pred transaccionesEnBloqueOrdenadas(in bloque: Bloque, in blockhain: BlockChain){
+        (paraTodo i : Z)(0 <= i < |bloque.transacciones| - 1 ->L bloque.transacciones[i].id_transaccion = bloque.transacciones[i+1].id_transaccion - 1 )
+    }
+
+    pred esBloqueValido(in bloque: Bloque, in blockchain: BlockChain){
+        // no tiene transacciones repetidas (lo quiero verificar de vuelta?)
+        // el n_bloque es el que tiene q ser
+        // si n_bloque < 3000 -> tiene op de creacion
+        (n_bloqueCorrecto(bloque, blockhain)) ^
+        (longitudBloqueCorrecta(bloque, blockhain)) ^
+        (bloqueDeCreacionCorrecto(bloque, blockhain)) ^
+        (transaccionesEnBloqueOrdenadas(bloque, blockhain)) ^
+        (paraTodo i:Z)
+             (0 <= i <= |bloque.transacciones| - 1) -->L
+                (esTransaccionValida(bloques.transacciones[i]))
+    }
+
+    //// BLOCKHAIN
+
+    // Verifica que el ultimo de un bloque sea el primero del siguiente - 1
+    pred BlockChainOrdenada(in blockhain: BlockChain){
+        (paraTodo i:Z) (0 <= i < |blockhain.bloques| - 1) ->L blockhain.bloques[i].transacciones[ |blockhain.bloques[i].transacciones| - 1].id_transaccion = blockhain.bloques[i+1].transacciones[0].id_transaccion - 1
+    }
+
+
+    pred esBlockChainValida(in blockhain: BlockChain){
+        // todos los bloques son validos
+        // para cada bloque, todos los id_transaccion son > al de todos los anteriores
+
+        (BlockChainOrdenada(blockhain)) ^
+        (paraTodo i:Z) (0 <= i <= |blockhain.bloques| - 1 ->L esBloqueValido(bloque, blockhain))
+    }
+    ////
+
+    // aux ultimoBloque (in blockchain: BlockChain): Bloque {
+    //     res.n_bloque = |blockchain.bloques| - 1
+    // }
+
     
     pred esTransacciondeCreacion(in transaccion: Transaccion) {
-        True <-> ((transaccion.id_comprador = 0) ^ (transaccion.monto = 1))
-    }
-    pred esBloqueConTransacciondeCreacion(in bloque: Bloque) {
-        True <-> esTransacciondeCreacion(bloque.transacciones[0])
+        ((transaccion.id_comprador = 0) ^ (transaccion.monto = 1))
     }
 
-    aux coinsEnBloque(in: id_usuario: int, in: bloque: Bloque): int {
+
+    aux coinsUsuarioEnBloque(in: id_usuario: int, in: bloque: Bloque): int {
         Sum_{i=0}^{|bloque.transacciones| - 1} (
             IfThenElseFi(
                 bloque.transacciones[i].id_comprador == id_usuario, 
@@ -48,45 +128,33 @@ TAD $BerretaCoin {
         )
     }
 
-    aux coinsEnCuenta(in: id_usuario: int, in: blockchain: Blockchain): int {
+    aux coinsUsuarioEnCuenta(in: id_usuario: int, in: blockchain: Blockchain): int {
         Sum_{i=0}^{|blockchain.bloques| - 1}(
-            coinsEnBloque(id_usuario, blockhain.bloques[i])
+            coinsUsuarioEnBloque(id_usuario, blockhain.bloques[i])
         )
     }
-
-    // COMPLETAR aux esBlockChainValida
-
-    aux esTransaccionValida(in transaccion: Transaccion, in blockchain: BlockChain): bool {
-        (paraCada i:Z) ( 
-                transaccion[i].monto <= coinsEnCuenta(transaccion[i].id_comprador, blockchain) ^
-                (transaccion[i].id_comprador != transaccion[i].id_vendedor) ^
-                (esTransaccionUnica(transaccion, BlockChain))
-            )
-    } // Preguntar si se puede aux en aux, pred en pred, o cualquiera (y si se vale cambiar un pred por un aux q devuelva bool)
 
 
     proc agregarBloque (in transacciones: seq<Transaccion>, inout blockchain: BlockChain) {
         requiere {(|transacciones| > 0) ^ (|transacciones| <= 50) ^ (paraTodo i:Z)
-             (0 < i < |transacciones|) -> 
-                (esTransaccionValida(transacciones[i]))}
+             (0 <= i <= |transacciones| - 1) -->
+                (esTransaccionValida(transacciones[i]))} // es redundante pero decia que no escatimemos con las verificaciones
         requiere {blockchain = BC_0}
         asegura {|blockchain.bloques| = |BC_0.bloques| + 1}
-        asegura {(ultimoBloque(BC_0).n_bloque < 3000) -> 
-                esTransacciondeCreacion(transacciones[0])}
-        // esBloqueConTransacciondeCreacion(ultimoBloque(blockchain))}
+        asegura {esBloqueValido(bloque, blockhain)}
+        asegura {esBlockChainValida(blockhain)} //redundante
+
     }
 
 
-    // maximosTenedores: devuelve una lista que contiene al o los usuarios que tienen la mayor cantidad de $Berretacoin
-
     aux usuariosUnicosEnBloque(in bloque: Bloque): seq<N> {
-        (paraTodo i:Z) (0 < i < |bloque| -> IfThenElseFi(bloque.transacciones[i].id_comprador not in res, concat(res, <bloque.transacciones[i].id_comprador>), 
+        (paraTodo i:Z) (0 <= i < |bloque.transacciones| --> IfThenElseFi(bloque.transacciones[i].id_comprador not in res, concat(res, <bloque.transacciones[i].id_comprador>), 
             IfThenElseFi(bloque.transacciones[i].id_vendedor not in res, concat(res(bloque, <bloque.transacciones[i].id_vendedor>), concat(res, < >)))))
     } // VER SI ESTA BIEN
 
     aux usuariosUnicos(in blockchain: BlockChain): seq<N> {
         // devuelve lista de usuarios
-        (paraTodo i:Z) ()
+        (paraTodo i:Z) () 
 
     }
 
@@ -94,13 +162,51 @@ TAD $BerretaCoin {
         requiere {|blockchain.bloques| > 0}
         requiere {esBlockChainValida(BlockChain)}
         asegura {(paraTodo i:Z) 
-                    (0 < i < |usuariosUnicos(blockchain)|) -> 
-                        coinsEnCuenta(res[0]) <= coinsEnCuenta(usuariosUnicos[i]) } //no hace falta verificar el resto de res xq tienen todos igual plata
+                    (0 <= i < |usuariosUnicos(blockchain)|) --> 
+                        coinsUsuarioEnCuenta(res[0]) <= coinsUsuarioEnCuenta(usuariosUnicos[i]) } //no hace falta verificar el resto de res xq tienen todos igual plata
     }
 
-    aux transaccionUnica (id_transaccion: natural, blockchain: BlockChain) : bool {
-        (paratodo i : Z) ((paratodo j : Z) (0 <= i <= |blockhain.bloques|) ^ (0 <= j <= |blockhain.bloques[i]|) -> id_transaccion != blockhain.bloques[i].transacciones[j].id_transaccion)
+
+    aux cantidadDeTransacciones(in blockchain: BlockChain): int{
+        Sum_{i=0}^{|blockhain.bloques| - 1} (
+           |blockhain.bloques[i].transacciones|
+        )
     }
+
+    aux cantidadDeCreacion(in blockchain: BlockChain): int{
+        IfThenElseFi(|blockhain.bloques| > 3000,
+        3000,
+        |blockhain.bloques|)
+    }
+
+    aux montoTotalBloque(in bloque: Bloque): int{
+        Sum_{i=0}^{|bloque.transacciones| - 1} (
+           bloque.transacciones[i].monto
+        )
+    }
+
+    aux montoTotal(in blockchain: BlockChain): int{
+        Sum_{i=0}^{|blockhain.bloques| - 1} (
+            montoTotalBloque(blockhain.bloques[i])
+        )
+    }
+
+    proc montoMedio(in blockchain: Blockchain): R {
+        requiere{esBlockchainValida(blockchain)}
+        requiere{|blockchain.bloques| > 0}
+        asegura{res = (montoTotal(blockchain) - cantidadDeCreacion(blockhain)) / 
+        (cantidadDeTransacciones(blockhain) - cantidadDeCreacion(blockhain))}
+    }
+
+    proc cotizacionAPesos(in cotizaciones: seq<N>, in blockhain: BlockChain): seq<N> {
+        requiere{|cotizaciones| > 0}
+        requiere{|cotizaciones| = |blockhain.bloques|}
+        asegura{
+            (paraTodo i: Z, 0 <= i <= |cotizaciones| - 1 ->L res[i] = montoTotalBloque(blockhain.bloques[i]) * cotizaciones[i])
+        }
+    }
+
+   
 
 
         
