@@ -35,7 +35,7 @@ TAD $BerretaCoin {
     }
 
     proc crearBlockChain(in bloques: seq<Bloques>): BlockChain{
-        asegura{res.bloques = bloques}
+        asegura{res = bloques}
     }
 
     //Validaciones
@@ -43,7 +43,7 @@ TAD $BerretaCoin {
 
      // VER SI ESTA BIEN LA VERIFICACION DE ID_TRANSACCION UNICO
     pred esTransaccionUnica (id_transaccion: natural, blockchain: BlockChain){
-        (paratodo i : Z) ((paratodo j : Z) (0 <= i <= |blockhain.bloques|) ^ (0 <= j <= |blockhain.bloques[i]|) -->L id_transaccion != blockhain.bloques[i].transacciones[j].id_transaccion)
+        (paratodo i : Z) ((paratodo j : Z) (0 <= i <= |blockhain|) ^ (0 <= j <= |blockhain[i]|) -->L id_transaccion != blockhain[i].transacciones[j].id_transaccion)
     }
 
 
@@ -59,7 +59,7 @@ TAD $BerretaCoin {
 
     // que el n_bloque coincida con el n_bloque que tiene en la blockhain
     pred n_bloqueCorrecto(in bloque: Bloque, in blockchain: BlockChain){
-        bloque.n_bloque = blockhain.bloques[bloque.n_bloque].n_bloque
+        bloque.n_bloque = blockhain[bloque.n_bloque].n_bloque
     }
 
     pred longitudBloqueCorrecta(in bloque: Bloque, in blockchain: BlockChain){
@@ -92,7 +92,7 @@ TAD $BerretaCoin {
 
     // Verifica que el ultimo de un bloque sea el primero del siguiente - 1
     pred BlockChainOrdenada(in blockhain: BlockChain){
-        (paraTodo i:Z) (0 <= i < |blockhain.bloques| - 1) ->L blockhain.bloques[i].transacciones[ |blockhain.bloques[i].transacciones| - 1].id_transaccion = blockhain.bloques[i+1].transacciones[0].id_transaccion - 1
+        (paraTodo i:Z) (0 <= i < |blockhain| - 1) ->L blockhain[i].transacciones[ |blockhain[i].transacciones| - 1].id_transaccion = blockhain[i+1].transacciones[0].id_transaccion - 1
     }
 
 
@@ -101,12 +101,12 @@ TAD $BerretaCoin {
         // para cada bloque, todos los id_transaccion son > al de todos los anteriores
 
         (BlockChainOrdenada(blockhain)) ^
-        (paraTodo i:Z) (0 <= i <= |blockhain.bloques| - 1 ->L esBloqueValido(bloque, blockhain))
+        (paraTodo i:Z) (0 <= i <= |blockhain| - 1 ->L esBloqueValido(bloque, blockhain))
     }
     ////
 
     // aux ultimoBloque (in blockchain: BlockChain): Bloque {
-    //     res.n_bloque = |blockchain.bloques| - 1
+    //     res.n_bloque = |blockchain| - 1
     // }
 
     
@@ -129,8 +129,8 @@ TAD $BerretaCoin {
     }
 
     aux coinsUsuarioEnCuenta(in: id_usuario: int, in: blockchain: Blockchain): int {
-        Sum_{i=0}^{|blockchain.bloques| - 1}(
-            coinsUsuarioEnBloque(id_usuario, blockhain.bloques[i])
+        Sum_{i=0}^{|blockchain| - 1}(
+            coinsUsuarioEnBloque(id_usuario, blockhain[i])
         )
     }
 
@@ -140,7 +140,7 @@ TAD $BerretaCoin {
              (0 <= i <= |transacciones| - 1) -->
                 (esTransaccionValida(transacciones[i]))} // es redundante pero decia que no escatimemos con las verificaciones
         requiere {blockchain = BC_0}
-        asegura {|blockchain.bloques| = |BC_0.bloques| + 1}
+        asegura {|blockchain| = |BC_0| + 1}
         asegura {esBloqueValido(bloque, blockhain)}
         asegura {esBlockChainValida(blockhain)} //redundante
 
@@ -159,7 +159,7 @@ TAD $BerretaCoin {
     }
 
     proc maximosTenedores (in blockchain: BlockChain): seq<N> {
-        requiere {|blockchain.bloques| > 0}
+        requiere {|blockchain| > 0}
         requiere {esBlockChainValida(BlockChain)}
         asegura {(paraTodo i:Z) 
                     (0 <= i < |usuariosUnicos(blockchain)|) --> 
@@ -168,15 +168,15 @@ TAD $BerretaCoin {
 
 
     aux cantidadDeTransacciones(in blockchain: BlockChain): int{
-        Sum_{i=0}^{|blockhain.bloques| - 1} (
-           |blockhain.bloques[i].transacciones|
+        Sum_{i=0}^{|blockhain| - 1} (
+           |blockhain[i].transacciones|
         )
     }
 
     aux cantidadDeCreacion(in blockchain: BlockChain): int{
-        IfThenElseFi(|blockhain.bloques| > 3000,
+        IfThenElseFi(|blockhain| > 3000,
         3000,
-        |blockhain.bloques|)
+        |blockhain|)
     }
 
     aux montoTotalBloque(in bloque: Bloque): int{
@@ -186,23 +186,23 @@ TAD $BerretaCoin {
     }
 
     aux montoTotal(in blockchain: BlockChain): int{
-        Sum_{i=0}^{|blockhain.bloques| - 1} (
-            montoTotalBloque(blockhain.bloques[i])
+        Sum_{i=0}^{|blockhain| - 1} (
+            montoTotalBloque(blockhain[i])
         )
     }
 
     proc montoMedio(in blockchain: Blockchain): R {
         requiere{esBlockchainValida(blockchain)}
-        requiere{|blockchain.bloques| > 0}
+        requiere{|blockchain| > 0}
         asegura{res = (montoTotal(blockchain) - cantidadDeCreacion(blockhain)) / 
         (cantidadDeTransacciones(blockhain) - cantidadDeCreacion(blockhain))}
     }
 
     proc cotizacionAPesos(in cotizaciones: seq<N>, in blockhain: BlockChain): seq<N> {
         requiere{|cotizaciones| > 0}
-        requiere{|cotizaciones| = |blockhain.bloques|}
+        requiere{|cotizaciones| = |blockhain|}
         asegura{
-            (paraTodo i: Z, 0 <= i <= |cotizaciones| - 1 ->L res[i] = montoTotalBloque(blockhain.bloques[i]) * cotizaciones[i])
+            (paraTodo i: Z, 0 <= i <= |cotizaciones| - 1 ->L res[i] = montoTotalBloque(blockhain[i]) * cotizaciones[i])
         }
     }
 
